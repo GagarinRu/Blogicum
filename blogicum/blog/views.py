@@ -23,7 +23,6 @@ class CategoryListView(ListView):
     model = Category
     template_name = 'blog/category.html'
     paginate_by = MAX_DISPLAY_POSTS
-    ordering = '-pub_date'
 
     def get_queryset(self):
         self.category_page = get_object_or_404(
@@ -41,6 +40,8 @@ class CategoryListView(ListView):
             category__is_published=True
         ).annotate(
             comment_count=Count('comments')
+        ).order_by(
+            '-pub_date'
         )
 
     def get_context_data(self, **kwargs):
@@ -62,6 +63,8 @@ class PostListView(ListView):
         category__is_published=True
     ).annotate(
         comment_count=Count('comments')
+    ).order_by(
+        '-pub_date'
     )
     paginate_by = MAX_DISPLAY_POSTS
     ordering = '-pub_date'
@@ -168,7 +171,6 @@ class ProfileDetailView(ListView):
     model = Post
     template_name = 'blog/profile.html'
     paginate_by = MAX_DISPLAY_POSTS
-    ordering = '-pub_date'
 
     def get_queryset(self):
         self.username = get_object_or_404(
@@ -181,6 +183,8 @@ class ProfileDetailView(ListView):
             'category'
         ).annotate(
             comment_count=Count('comments')
+        ).order_by(
+            '-pub_date'
         )
 
     def get_context_data(self, **kwargs):
