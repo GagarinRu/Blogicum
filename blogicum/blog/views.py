@@ -1,5 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -12,10 +13,24 @@ from .forms import CommentForm, PostForm, UserProfileForm
 from .models import Category, Comment, Post, User
 
 
-class AuthorComparisonMixin(LoginRequiredMixin):
+class PostAuthorComparisonMixin(LoginRequiredMixin):
+    model = Post
+    template_name = 'blog/create.html'
+
     def dispatch(self, request, *args, **kwargs):
         if self.get_object().author != request.user:
             return redirect('blog:post_detail', pk=self.kwargs['pk'])
+        return super().dispatch(request, *args, **kwargs)
+
+
+class CommentAuthorComparisonMixin(LoginRequiredMixin):
+    model = Comment
+    template_name = 'blog/comment.html'
+    pk_url_kwarg = 'comment_id'
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.get_object().author != request.user:
+            return redirect('blog:post_detail', pk=self.kwargs['post_id'])
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -75,6 +90,17 @@ class PostDetailView(DetailView):
     form_class = CommentForm
     template_name = 'blog/detail.html'
 
+    def dispatch(self, request, *args, **kwargs):
+        post = self.get_object()
+        if post.author != request.user and (
+            post.pub_date > timezone.now()
+            or not post.is_published
+            or not post.category.is_published
+        ):
+            raise Http404
+        else:
+            return super().dispatch(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['post'] = self.object
@@ -95,17 +121,15 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     def get_success_url(self):
         return reverse(
             'blog:profile',
-            args=[self.request.user.username]
+            kwargs={'username': self.request.user.username}
         )
 
 
-class PostUpdateView(AuthorComparisonMixin, UpdateView):
-    model = Post
+class PostUpdateView(PostAuthorComparisonMixin, UpdateView):
     form_class = PostForm
-    template_name = 'blog/create.html'
 
 
-class PostDeleteView(AuthorComparisonMixin, DeleteView):
+class PostDeleteView(PostAuthorComparisonMixin, DeleteView):
     model = Post
     success_url = reverse_lazy('blog:index')
     template_name = 'blog/create.html'
@@ -122,7 +146,10 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
     form_class = CommentForm
 
     def dispatch(self, request, *args, **kwargs):
-        self.post_var = get_object_or_404(Post, pk=kwargs['pk'])
+        self.post_var = get_object_or_404(
+            Post,
+            pk=kwargs['pk']
+        )
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
@@ -137,11 +164,8 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
         )
 
 
-class CommentUpdateView(AuthorComparisonMixin, UpdateView):
-    model = Comment
+class CommentUpdateView(CommentAuthorComparisonMixin, UpdateView):
     form_class = CommentForm
-    template_name = 'blog/comment.html'
-    pk_url_kwarg = 'comment_id'
 
     def get_success_url(self):
         return reverse(
@@ -150,14 +174,9 @@ class CommentUpdateView(AuthorComparisonMixin, UpdateView):
         )
 
 
-class CommentDeleteView(AuthorComparisonMixin, DeleteView):
-    model = Comment
-    template_name = 'blog/comment.html'
-    pk_url_kwarg = 'comment_id'
-
+class CommentDeleteView(CommentAuthorComparisonMixin, DeleteView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['form'] = CommentForm(instance=self.object)
         return context
 
     def get_success_url(self):
@@ -189,8 +208,10 @@ class ProfileDetailView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        username = self.kwargs['username']
-        profile = get_object_or_404(User, username=username)
+        profile = get_object_or_404(
+            User,
+            username=self.kwargs['username']
+        )
         context['profile'] = profile
         return context
 

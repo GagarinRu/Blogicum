@@ -11,7 +11,7 @@ urlpatterns = [
         name='index'
     ),
     path(
-        'posts/create',
+        'posts/create/',
         views.PostCreateView.as_view(),
         name='create_post'
     ),
