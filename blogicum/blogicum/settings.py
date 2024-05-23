@@ -99,7 +99,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CSRF_FAILURE_VIEW = 'pages.views.csrf_failure'
 
-MEDIA_ROOT = BASE_DIR / 'media' 
+MEDIA_ROOT = BASE_DIR / 'media'
 
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
 
