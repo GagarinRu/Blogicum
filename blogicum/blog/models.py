@@ -1,6 +1,5 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Count
 
@@ -136,6 +135,7 @@ class Post(IsPublishedCreatedAt):
 
     def __str__(self):
         return self.title[:MAX_DISPLAY_HEADING]
+
 
 class Comment(CreatedAt):
     text = models.TextField('Текст комментария')
