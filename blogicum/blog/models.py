@@ -1,17 +1,49 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
+from django.db.models import Count
 
 from blog.constants import CHARFIELD_LENGTH, MAX_DISPLAY_HEADING
 
 User = get_user_model()
 
 
-class PublishedModel(models.Model):
+class PostCategoryManager(models.Manager):
+    def get_queryset(self):
+        return PostCategoryQuerySet(self.model, using=self._db)
+
+    def get_comments_count(self):
+        return self.get_queryset().get_comments_count()
+
+    def get_active_filter(self):
+        return self.get_queryset().get_active_filter()
+
+
+class PostCategoryQuerySet(models.QuerySet):
+    def get_comments_count(self):
+        return self.annotate(comment_count=Count('comments'))
+
+    def get_active_filter(self):
+        return self.filter(
+            pub_date__date__lte=timezone.now(),
+            is_published=True,
+            category__is_published=True,
+        )
+
+
+class CreatedAt(models.Model):
     created_at = models.DateTimeField(
         'Добавлено',
         auto_now_add=True
     )
+
+    class Meta:
+        ordering = ('created_at',)
+        abstract = True
+
+
+class IsPublishedCreatedAt(CreatedAt):
     is_published = models.BooleanField(
         'Опубликовано',
         default=True,
@@ -22,7 +54,7 @@ class PublishedModel(models.Model):
         abstract = True
 
 
-class Location(PublishedModel):
+class Location(IsPublishedCreatedAt):
     name = models.CharField(
         'Название места',
         max_length=CHARFIELD_LENGTH
@@ -36,7 +68,7 @@ class Location(PublishedModel):
         return self.name[:MAX_DISPLAY_HEADING]
 
 
-class Category(PublishedModel):
+class Category(IsPublishedCreatedAt):
     title = models.CharField(
         'Заголовок',
         max_length=CHARFIELD_LENGTH
@@ -48,6 +80,7 @@ class Category(PublishedModel):
         help_text='Идентификатор страницы для URL; '
         'разрешены символы латиницы, цифры, дефис и подчёркивание.'
     )
+    objects = PostCategoryManager.from_queryset(PostCategoryQuerySet)()
 
     class Meta:
         verbose_name = 'категория'
@@ -57,7 +90,7 @@ class Category(PublishedModel):
         return self.title[:MAX_DISPLAY_HEADING]
 
 
-class Post(PublishedModel):
+class Post(IsPublishedCreatedAt):
     title = models.CharField(
         'Заголовок',
         max_length=CHARFIELD_LENGTH
@@ -94,6 +127,7 @@ class Post(PublishedModel):
         upload_to='post_images',
         blank=True
     )
+    objects = PostCategoryManager.from_queryset(PostCategoryQuerySet)()
 
     class Meta:
         verbose_name = 'публикация'
@@ -103,24 +137,24 @@ class Post(PublishedModel):
     def __str__(self):
         return self.title[:MAX_DISPLAY_HEADING]
 
-    def get_absolute_url(self):
-        return reverse('blog:post_detail', kwargs={'pk': self.pk})
-
-
-class Comment(PublishedModel):
-    text = models.TextField('Текст поздравления')
+class Comment(CreatedAt):
+    text = models.TextField('Текст комментария')
     post = models.ForeignKey(
         Post,
         on_delete=models.CASCADE,
         related_name='comments',
+        verbose_name='Заголовок поста',
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='authors',
+        verbose_name='Автор комментария'
+    )
 
     class Meta:
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
-        ordering = ('created_at',)
 
     def __str__(self):
-        return self.title[:MAX_DISPLAY_HEADING]
+        return self.text[:MAX_DISPLAY_HEADING]
