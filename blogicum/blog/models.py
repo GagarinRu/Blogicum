@@ -8,22 +8,19 @@ from blog.constants import CHARFIELD_LENGTH, MAX_DISPLAY_HEADING
 User = get_user_model()
 
 
-class PostCategoryManager(models.Manager):
-    def get_queryset(self):
-        return PostCategoryQuerySet(self.model, using=self._db)
+class PostQuerySet(models.QuerySet):
+    def annotate_select_comments(self):
+        return self.select_related(
+            'author',
+            'location',
+            'category'
+        ).annotate(
+            comment_count=Count('comments')
+        ).order_by(
+            '-pub_date'
+        )
 
-    def get_comments_count(self):
-        return self.get_queryset().get_comments_count()
-
-    def get_active_filter(self):
-        return self.get_queryset().get_active_filter()
-
-
-class PostCategoryQuerySet(models.QuerySet):
-    def get_comments_count(self):
-        return self.annotate(comment_count=Count('comments'))
-
-    def get_active_filter(self):
+    def publish_filter(self):
         return self.filter(
             pub_date__date__lte=timezone.now(),
             is_published=True,
@@ -79,7 +76,6 @@ class Category(IsPublishedCreatedAt):
         help_text='Идентификатор страницы для URL; '
         'разрешены символы латиницы, цифры, дефис и подчёркивание.'
     )
-    objects = PostCategoryManager.from_queryset(PostCategoryQuerySet)()
 
     class Meta:
         verbose_name = 'категория'
@@ -126,7 +122,7 @@ class Post(IsPublishedCreatedAt):
         upload_to='post_images',
         blank=True
     )
-    objects = PostCategoryManager.from_queryset(PostCategoryQuerySet)()
+    objects = PostQuerySet.as_manager()
 
     class Meta:
         verbose_name = 'публикация'
@@ -148,11 +144,11 @@ class Comment(CreatedAt):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='authors',
+        related_name='comments',
         verbose_name='Автор комментария'
     )
 
-    class Meta:
+    class Meta(CreatedAt.Meta):
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
 

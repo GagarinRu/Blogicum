@@ -8,8 +8,8 @@ from .models import Post, Comment
 
 class OnlyAuthorMixin(UserPassesTestMixin):
     def test_func(self):
-        object = self.get_object()
-        return object.author == self.request.user
+
+        return self.get_object().author == self.request.user
 
 
 class PostMixin(OnlyAuthorMixin, LoginRequiredMixin):
@@ -21,7 +21,7 @@ class PostMixin(OnlyAuthorMixin, LoginRequiredMixin):
     def handle_no_permission(self):
         return redirect(
             'blog:post_detail',
-            post_id=self.kwargs['post_id']
+            post_id=self.kwargs[self.pk_url_kwarg]
         )
 
     def get_success_url(self):

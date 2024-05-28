@@ -18,58 +18,43 @@ class CategoryListView(ListView):
     paginate_by = MAX_DISPLAY_POSTS
 
     def get_queryset(self):
-        self.category_page = get_object_or_404(
-            Category.objects.all(),
+        queryset = get_object_or_404(
+            Category,
             slug=self.kwargs['category_slug'],
             is_published=True
         )
-        return self.category_page.posts.select_related(
-            'author',
-            'location',
-            'category'
-        ).get_active_filter(
-        ).get_comments_count(
-        ).order_by(
-            '-pub_date'
-        )
+        return queryset.posts.publish_filter().annotate_select_comments()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['category'] = self.category_page
+        context['category'] = self.queryset
         return context
 
 
 class PostListView(ListView):
     model = Post
     template_name = 'blog/index.html'
-    queryset = Post.objects.get_active_filter(
-    ).get_comments_count(
-    ).order_by(
-        '-pub_date'
-    )
+    queryset = Post.objects.annotate_select_comments().publish_filter()
     paginate_by = MAX_DISPLAY_POSTS
-    ordering = '-pub_date'
 
 
 class PostDetailView(DetailView):
     model = Post
     form_class = CommentForm
     template_name = 'blog/detail.html'
+    pk_url_kwarg = 'post_id'
 
     def get_object(self):
         post = get_object_or_404(
-            Post.objects.all(),
-            pk=self.kwargs['post_id'],
+            Post,
+            pk=self.kwargs[self.pk_url_kwarg],
         )
         if post.author == self.request.user:
             return post
-        else:
-            return get_object_or_404(
-                Post.objects.get_active_filter(
-                ).filter(
-                    pk=self.kwargs['post_id'],
-                )
-            )
+        return get_object_or_404(
+            Post.objects.publish_filter(
+            ), pk=self.kwargs[self.pk_url_kwarg]
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -96,10 +81,12 @@ class PostCreateView(LoginRequiredMixin, CreateView):
 
 
 class PostUpdateView(PostMixin, UpdateView):
+    pk_url_kwarg = 'post_id'
+
     def get_success_url(self):
         return reverse(
             'blog:post_detail',
-            kwargs={'post_id': self.kwargs['post_id']}
+            kwargs={'post_id': self.kwargs[self.pk_url_kwarg]}
         )
 
 
@@ -131,30 +118,15 @@ class ProfileDetailView(ListView):
     paginate_by = MAX_DISPLAY_POSTS
 
     def get_queryset(self):
-        username = self.kwargs['username']
-        profile = get_object_or_404(User, username=username)
-        queryset = profile.posts.select_related(
-            'location',
-            'author',
-            'category'
-        ).filter(
-            author=profile
-        ).get_comments_count(
-        ).order_by(
-            '-pub_date'
-        )
-        if profile != self.request.user:
-            return queryset.get_active_filter()
-        else:
-            return queryset
+        self.author = get_object_or_404(User, username=self.kwargs['username'])
+        queryset = self.author.posts.annotate_select_comments()
+        if self.author != self.request.user:
+            queryset = queryset.publish_filter()
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        profile = get_object_or_404(
-            User,
-            username=self.kwargs['username']
-        )
-        context['profile'] = profile
+        context['profile'] = self.author
         return context
 
 

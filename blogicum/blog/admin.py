@@ -26,10 +26,14 @@ class PostAdmin(admin.ModelAdmin):
     )
     search_fields = ('title',)
     list_filter = ('category',)
-    empty_value_display = ['empty_image']
+    readonly_fields = ['post_photo']
 
-    def empty_image(self, obj):
-        return mark_safe(f'<img src={obj.image.url} width="80" height="60">')
+    @admin.display(description="Изображение")
+    def post_photo(self, obj):
+        if obj:
+            return mark_safe(f'<img src={obj.image.url}\
+                            \n width="80" height="60">')
+        return 'Не задано'
 
 
 class PostInline(admin.TabularInline):
