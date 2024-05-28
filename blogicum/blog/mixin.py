@@ -1,5 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse
+from django.shortcuts import redirect
 
 from .forms import PostForm, CommentForm
 from .models import Post, Comment
@@ -18,9 +19,9 @@ class PostMixin(OnlyAuthorMixin, LoginRequiredMixin):
     pk_url_kwarg = 'post_id'
 
     def handle_no_permission(self):
-        return reverse(
+        return redirect(
             'blog:post_detail',
-            kwargs={'post_id': self.kwargs['post_id']}
+            post_id=self.kwargs['post_id']
         )
 
     def get_success_url(self):

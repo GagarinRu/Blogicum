@@ -166,7 +166,7 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
         return self.request.user
 
     def get_success_url(self):
-        return reverse_lazy(
+        return reverse(
             'blog:profile',
             kwargs={'username': self.object.username}
         )
@@ -176,3 +176,4 @@ class RegistrationCreate(CreateView):
     template_name = 'registration/registration_form.html'
     form_class = UserCreationForm
     success_url = reverse_lazy('blog:index')
+    
