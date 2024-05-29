@@ -20,8 +20,8 @@ class CategoryListView(ListView):
     def get_queryset(self):
         self.category = get_object_or_404(
             Category.objects.filter(
-            slug=self.kwargs['category_slug'],
-            is_published=True
+                slug=self.kwargs['category_slug'],
+                is_published=True
             )
         )
         return self.category.posts.publish_filter().annotate_select_comments()
