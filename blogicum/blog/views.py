@@ -17,18 +17,19 @@ class CategoryListView(ListView):
     template_name = 'blog/category.html'
     paginate_by = MAX_DISPLAY_POSTS
 
-    def get_queryset(self):
-        self.category = get_object_or_404(
-            Category.objects.filter(
-                slug=self.kwargs['category_slug'],
-                is_published=True
-            )
+    def get_category(self):
+        return get_object_or_404(
+            Category,
+            slug=self.kwargs['category_slug'],
+            is_published=True
         )
-        return self.category.posts.publish_filter().annotate_select_comments()
+
+    def get_queryset(self):
+        return self.get_category().posts.publish_filter().annotate_select_comments()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['category'] = self.category
+        context['category'] = self.get_category()
         return context
 
 
@@ -118,20 +119,21 @@ class ProfileDetailView(ListView):
     template_name = 'blog/profile.html'
     paginate_by = MAX_DISPLAY_POSTS
 
-    def get_queryset(self):
-        self.author = get_object_or_404(
-            User.objects.filter(
-                username=self.kwargs['username']
-            )
+    def get_profile(self):
+        return get_object_or_404(
+            User,
+            username=self.kwargs['username']
         )
-        queryset = self.author.posts.annotate_select_comments()
-        if self.author != self.request.user:
+
+    def get_queryset(self):
+        queryset = self.get_profile().posts.annotate_select_comments()
+        if self.get_profile() != self.request.user:
             queryset = queryset.publish_filter()
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['profile'] = self.author
+        context['profile'] = self.get_profile()
         return context
 
 
