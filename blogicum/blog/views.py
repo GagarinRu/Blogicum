@@ -18,16 +18,17 @@ class CategoryListView(ListView):
     paginate_by = MAX_DISPLAY_POSTS
 
     def get_queryset(self):
-        queryset = get_object_or_404(
-            Category,
+        self.category = get_object_or_404(
+            Category.objects.filter(
             slug=self.kwargs['category_slug'],
             is_published=True
+            )
         )
-        return queryset.posts.publish_filter().annotate_select_comments()
+        return self.category.posts.publish_filter().annotate_select_comments()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['category'] = self.queryset
+        context['category'] = self.category
         return context
 
 
@@ -118,7 +119,11 @@ class ProfileDetailView(ListView):
     paginate_by = MAX_DISPLAY_POSTS
 
     def get_queryset(self):
-        self.author = get_object_or_404(User, username=self.kwargs['username'])
+        self.author = get_object_or_404(
+            User.objects.filter(
+                username=self.kwargs['username']
+            )
+        )
         queryset = self.author.posts.annotate_select_comments()
         if self.author != self.request.user:
             queryset = queryset.publish_filter()
