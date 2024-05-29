@@ -25,7 +25,8 @@ class CategoryListView(ListView):
         )
 
     def get_queryset(self):
-        return self.get_category().posts.publish_filter().annotate_select_comments()
+        return self.get_category().posts.publish_filter()\
+            .annotate_select_comments()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
